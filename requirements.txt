@@ -1,0 +1,2 @@
+pymobiledevice3==11.49.0
+aiohttp==3.14.5

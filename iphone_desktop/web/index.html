@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="app-token" content="__APP_TOKEN__">
+  <title>iPhone Desktop</title>
+  <link rel="icon" href="/assets/app.ico" sizes="any">
+  <link rel="icon" href="/assets/app-icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/assets/app-icon.png">
+  <link rel="stylesheet" href="/assets/style.css">
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+  <header class="appbar">
+    <div class="brand"><span class="brandmark" aria-hidden="true">▯</span><span>iPhone <strong>Desktop</strong><small>YOUR IPHONE, ON YOUR PC</small></span></div>
+    <div class="appbar-right"><span class="local"><span></span> Local connection</span><button id="quit" class="quiet">Quit</button></div>
+  </header>
+  <main>
+    <aside class="sidebar">
+      <div class="section-label">CONNECTION</div>
+      <h1>Make room<br>for your iPhone.</h1>
+      <p class="intro">Screen, mouse and keyboard.<br>Right from your PC.</p>
+      <div class="transport" role="group" aria-label="Connection type">
+        <button id="usb" class="selected" aria-pressed="true">↳ &nbsp;USB</button>
+        <button id="wifi" aria-pressed="false">◉ &nbsp;Wi-Fi</button>
+      </div>
+      <p id="transport-hint" class="hint">Start with a data-capable USB cable.</p>
+      <label class="field-label" for="device">YOUR DEVICE</label>
+      <div class="device-row"><select id="device" aria-label="iPhone to connect"><option value="">No devices</option></select><button id="scan" class="icon-button" title="Refresh devices" aria-label="Refresh devices">↻</button></div>
+      <div id="device-meta" class="hint device-meta">Connect and unlock your iPhone.</div>
+      <button id="connect" class="primary" disabled>Connect iPhone <span>↗</span></button>
+      <button id="disconnect" class="secondary" hidden>Disconnect</button>
+      <section id="status-card" class="status-card" aria-live="polite"><span id="status-dot" class="status-dot"></span><div><strong id="status-title">Ready to start</strong><p id="status-text">Connect your iPhone over USB to get started.</p></div></section>
+      <details id="setup" open>
+        <summary>First connection <span>⌄</span></summary>
+        <ol class="steps"><li><strong>Connect and trust</strong><p>Connect the cable, unlock your iPhone, and accept “Trust This Computer”.</p></li><li><strong>Enable Developer Mode</strong><p>Under Privacy &amp; Security on your iPhone. Confirm on the phone after restarting.</p><button id="reveal" class="text-button">Setting missing?</button></li><li><strong>Prepare services</strong><p>Only on first use or after an iOS update. Downloading requires Internet access.</p><button id="prepare" class="small-button">Prepare services</button></li></ol>
+        <div id="wifi-config"><label for="wifi-ip" class="hint">iPhone Wi-Fi IP (optional, if discovery fails)</label><input id="wifi-ip" type="text" inputmode="decimal" placeholder="e.g. 192.168.1.100" maxlength="15" autocomplete="off"><button id="setup-wifi" class="text-button wifi-setup">Set up Wi-Fi while USB is connected</button></div>
+      </details>
+      <div class="sidebar-bottom"><button id="show-log" class="text-button">Open log</button><span id="version">v0.2.0 · preview</span></div>
+    </aside>
+    <section class="preview" aria-label="iPhone screen">
+      <div class="preview-header"><span><span id="preview-dot" class="preview-dot"></span> <strong id="preview-title">Your screen, right here.</strong></span><button id="fullscreen" class="quiet" hidden>Expand ↗</button></div>
+      <div id="empty" class="empty-state">
+        <div class="phone-illustration" aria-hidden="true"><div class="phone-camera"></div><div class="phone-screen"><div class="phone-symbol">↗</div><div class="phone-line"></div><div class="phone-line short"></div></div><div class="phone-home"></div></div>
+        <div><div class="eyebrow">FEWER STEPS. MORE SPACE.</div><h2>From your phone<br>to your desktop.</h2><p id="empty-message">Connect your iPhone and complete the initial setup.<br>Then use your mouse to tap and scroll.</p></div>
+        <div class="feature-pills"><span>↳ USB</span><span>⌨ Mouse and keyboard</span><span>○ No Bluetooth</span></div>
+      </div>
+      <iframe id="viewer" title="Your iPhone screen and controls" allow="autoplay; fullscreen; clipboard-read; clipboard-write" hidden></iframe>
+      <div class="preview-footer"><span id="footer-status">Waiting for a device</span><span>PC on Ethernet + iPhone on Wi-Fi: same local network</span></div>
+    </section>
+  </main>
+  <dialog id="log-dialog"><div class="dialog-heading"><div><span class="section-label">LOCAL DIAGNOSTICS</span><h2>Connection log</h2></div><button id="close-log" class="quiet" aria-label="Close log">Close ✕</button></div><p>Logs stay on this PC. Nothing is uploaded automatically.</p><pre id="log-content"></pre></dialog>
+  <div id="toast" class="toast" role="alert" hidden></div>
+</body>
+</html>
