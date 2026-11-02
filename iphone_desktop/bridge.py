@@ -1,6 +1,7 @@
 """Isolated device worker. No Bluetooth, WDA, signed phone app or cloud relay."""
 import argparse
 import asyncio
+import contextlib
 import json
 import logging
 import sys
@@ -43,13 +44,15 @@ def require_stream_services(rsd):
         raise RuntimeError("ScreenServicesUnavailable: " + ", ".join(missing))
 
 
-async def discover() -> list[dict]:
+async def discover(transport=None) -> list[dict]:
     from pymobiledevice3.usbmux import list_devices
     from pymobiledevice3.lockdown import create_using_usbmux
 
     devices = await asyncio.wait_for(list_devices(), 10)
     result = []
     for device in devices:
+        if transport and ("usb" if device.is_usb else "wifi") != transport:
+            continue
         item = {"id": device.serial, "transport": "usb" if device.is_usb else "wifi", "name": "iPhone", "paired": False}
         try:
             async with asyncio.timeout(6):
@@ -62,6 +65,8 @@ async def discover() -> list[dict]:
     saved = saved_wifi_devices()
     for item in result:
         item["wifi_host"] = saved.get(item["id"], {}).get("host")
+    if transport == "usb":
+        return result
     try:
         async with asyncio.timeout(15):
             wireless = await discover_wifi()
@@ -72,6 +77,46 @@ async def discover() -> list[dict]:
     return result
 
 
+async def serve_stream(server, result_path, rsd=None):
+    """Cancel cooperatively so iOS releases remote observation and its camera.
+
+    TerminateProcess on Windows skips the upstream server's cleanup. A local
+    sentinel lets the controller request cancellation inside the worker loop.
+    """
+    stop_file = Path(result_path).with_suffix(".stop")
+    serving = asyncio.create_task(server.serve())
+    try:
+        while not serving.done():
+            if stop_file.exists():
+                serving.cancel()
+                break
+            await asyncio.sleep(0.2)
+        with contextlib.suppress(asyncio.CancelledError):
+            await serving
+    finally:
+        try:
+            if not serving.done():
+                serving.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await serving
+        finally:
+            try:
+                if rsd is not None:
+                    # Upstream starts audio/video before entering its server
+                    # cleanup block. Cancelling that preflight can leave iOS
+                    # remotely observed even though serve() has already ended.
+                    try:
+                        from pymobiledevice3.remote.core_device.display_service import DisplayService
+                        await asyncio.wait_for(DisplayService.stop_all_streams(rsd), timeout=6)
+                    except Exception:
+                        logging.exception("Could not release the device media session")
+            finally:
+                try:
+                    stop_file.unlink(missing_ok=True)
+                except OSError:
+                    logging.exception("Could not remove the stream stop request")
+
+
 async def execute(args) -> dict:
     if args.action == "selftest":
         from importlib.metadata import version
@@ -79,9 +124,11 @@ async def execute(args) -> dict:
         from pymobiledevice3.remote.core_device.screen_stream import ScreenStreamServer, VIEWER_HTML
         from pymobiledevice3.remote.core_device.display_service import VIDEO_STREAM_MIN_VERSION
         from pymobiledevice3.services.mobile_image_mounter import auto_mount
+        from iphone_desktop.viewer import prepare_viewer
+        prepare_viewer()
         return {"backend": version("pymobiledevice3"), "minimum_ios": str(VIDEO_STREAM_MIN_VERSION), "viewer_bytes": len(VIEWER_HTML), "runtime": "ready"}
     if args.action == "discover":
-        return {"devices": await discover()}
+        return {"devices": await discover(args.transport)}
 
     if args.transport == "wifi":
         from iphone_desktop.wireless import wifi_metadata
@@ -102,8 +149,10 @@ async def execute(args) -> dict:
                 return {**metadata, "message": "Developer services ready over Wi-Fi."}
             if args.action == "stream":
                 from pymobiledevice3.remote.core_device.screen_stream import ScreenStreamServer
+                from iphone_desktop.viewer import prepare_viewer
+                prepare_viewer()
                 require_stream_services(rsd)
-                await ScreenStreamServer(rsd, bind="127.0.0.1", http_port=args.port, audio_default_on=False).serve()
+                await serve_stream(ScreenStreamServer(rsd, bind="127.0.0.1", http_port=args.port, audio_default_on=False), args.result, rsd)
                 return metadata
             raise ValueError("This operation requires a USB cable.")
 
@@ -148,10 +197,12 @@ async def execute(args) -> dict:
     # session cannot leave a system-wide tunnel or change the PC's adapters.
     if args.action == "stream":
         from pymobiledevice3.remote.core_device.screen_stream import ScreenStreamServer
+        from iphone_desktop.viewer import prepare_viewer
+        prepare_viewer()
         async with session_tunnel(args.device, args.transport) as rsd:
             require_stream_services(rsd)
             server = ScreenStreamServer(rsd, bind="127.0.0.1", http_port=args.port, audio_default_on=False)
-            await server.serve()
+            await serve_stream(server, args.result, rsd)
     return metadata
 
 

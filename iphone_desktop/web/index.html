@@ -9,48 +9,90 @@
   <link rel="icon" href="/assets/app-icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/assets/app-icon.png">
   <link rel="stylesheet" href="/assets/style.css">
+  <script src="/assets/camera-view.js" defer></script>
+  <script src="/assets/desktop-camera.js" defer></script>
   <script src="/assets/app.js" defer></script>
 </head>
 <body>
   <header class="appbar">
-    <div class="brand"><span class="brandmark" aria-hidden="true">▯</span><span>iPhone <strong>Desktop</strong><small>YOUR IPHONE, ON YOUR PC</small></span></div>
-    <div class="appbar-right"><span class="local"><span></span> Local connection</span><button id="quit" class="quiet">Quit</button></div>
+    <div class="brand"><span class="brandmark" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="3"/><path d="M10 5h4M11 18.5h2"/></svg></span><span>iPhone <strong>Desktop</strong><small>YOUR PHONE. YOUR WORKSPACE.</small></span></div>
+    <div class="appbar-right"><span class="local"><span></span>Local connection</span><button id="quit" class="quiet">Quit</button></div>
   </header>
   <main>
-    <aside class="sidebar">
-      <div class="section-label">CONNECTION</div>
-      <h1>Make room<br>for your iPhone.</h1>
-      <p class="intro">Screen, mouse and keyboard.<br>Right from your PC.</p>
+    <aside class="sidebar" aria-label="Connection and camera controls">
+      <div class="sidebar-heading"><div class="section-label">WORKSPACE</div><h1 id="workspace-title">Connect your iPhone.</h1><p id="workspace-intro" class="intro">Screen control or a camera for your calls.</p></div>
+      <div id="connection-fields">
       <div class="transport" role="group" aria-label="Connection type">
-        <button id="usb" class="selected" aria-pressed="true">↳ &nbsp;USB</button>
-        <button id="wifi" aria-pressed="false">◉ &nbsp;Wi-Fi</button>
+        <button id="usb" class="selected" aria-pressed="true"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21V3m0 0-3 3m3-3 3 3M12 16H8a3 3 0 0 1-3-3V9m7 3h4a3 3 0 0 0 3-3V6"/><circle cx="5" cy="7" r="2"/><path d="M17 3h4v3h-4z"/></svg>USB</button>
+        <button id="wifi" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8a14 14 0 0 1 18 0M6 12a9 9 0 0 1 12 0M9 16a4.5 4.5 0 0 1 6 0"/><circle cx="12" cy="20" r=".8"/></svg>Wi-Fi</button>
       </div>
       <p id="transport-hint" class="hint">Start with a data-capable USB cable.</p>
-      <label class="field-label" for="device">YOUR DEVICE</label>
-      <div class="device-row"><select id="device" aria-label="iPhone to connect"><option value="">No devices</option></select><button id="scan" class="icon-button" title="Refresh devices" aria-label="Refresh devices">↻</button></div>
+      <label class="field-label" for="device">DEVICE</label>
+      <div class="device-row"><select id="device" aria-label="iPhone to connect"><option value="">No devices</option></select><button id="scan" class="icon-button" title="Refresh devices" aria-label="Refresh devices"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M5.3 8a7 7 0 0 1 11.6-3L20 8M4 16l3.1 3A7 7 0 0 0 18.7 16"/></svg></button></div>
       <div id="device-meta" class="hint device-meta">Connect and unlock your iPhone.</div>
-      <button id="connect" class="primary" disabled>Connect iPhone <span>↗</span></button>
-      <button id="disconnect" class="secondary" hidden>Disconnect</button>
-      <section id="status-card" class="status-card" aria-live="polite"><span id="status-dot" class="status-dot"></span><div><strong id="status-title">Ready to start</strong><p id="status-text">Connect your iPhone over USB to get started.</p></div></section>
-      <details id="setup" open>
-        <summary>First connection <span>⌄</span></summary>
-        <ol class="steps"><li><strong>Connect and trust</strong><p>Connect the cable, unlock your iPhone, and accept “Trust This Computer”.</p></li><li><strong>Enable Developer Mode</strong><p>Under Privacy &amp; Security on your iPhone. Confirm on the phone after restarting.</p><button id="reveal" class="text-button">Setting missing?</button></li><li><strong>Prepare services</strong><p>Only on first use or after an iOS update. Downloading requires Internet access.</p><button id="prepare" class="small-button">Prepare services</button></li></ol>
-        <div id="wifi-config"><label for="wifi-ip" class="hint">iPhone Wi-Fi IP (optional, if discovery fails)</label><input id="wifi-ip" type="text" inputmode="decimal" placeholder="e.g. 192.168.1.100" maxlength="15" autocomplete="off"><button id="setup-wifi" class="text-button wifi-setup">Set up Wi-Fi while USB is connected</button></div>
+      <button id="connect" class="primary" disabled>Connect iPhone <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5"/></svg></button>
+      </div>
+      <button id="disconnect" class="secondary stop-button" hidden>Disconnect</button>
+      <button id="start-camera" class="secondary camera-button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="14" height="13" rx="3"/><path d="m17 10 4-2v9l-4-2M8 6l1-3h4l1 3"/></svg>Use iPhone as webcam</button>
+      <p class="hint camera-hint">Direct camera video for OBS and video calls.</p>
+      <section id="status-card" class="status-card scanning" aria-live="polite"><span id="status-dot" class="status-dot"></span><div><strong id="status-title">Starting iPhone Desktop</strong><p id="status-text">Opening the local connection service…</p></div></section>
+
+      <div id="camera-tools" class="camera-tools" hidden>
+        <section id="camera-controls-panel" class="camera-controls-panel" aria-label="Camera controls">
+          <div class="panel-heading"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 17h16M8 4v6m8 4v6"/></svg><h2>Camera controls</h2></div>
+          <div id="camera-controls-status" class="control-status" role="status">Connect your iPhone camera to adjust its settings.</div>
+          <div id="camera-controls-content"></div>
+        </section>
+        <details id="camera-pairing" class="camera-pairing" open>
+          <summary><span class="summary-title"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h6v6H3zM15 3h6v6h-6zM3 15h6v6H3zM15 15h2v2h-2zM19 15h2v6h-6v-2"/></svg>Connect camera</span><svg class="icon chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg></summary>
+          <div class="camera-pairing-grid">
+            <div class="camera-code"><img id="camera-qr" alt="Scan with your iPhone to open camera setup" width="130" height="130"><span>Scan with your iPhone</span></div>
+            <div><p>Open in <strong>Safari</strong>, complete the one-time certificate setup, then tap <strong>Start camera</strong>.</p><p class="hint">Keep Safari open and the iPhone unlocked. Both devices need the same local network.</p>
+              <label class="field-label" for="camera-address">PC NETWORK ADDRESS</label><select id="camera-address"></select>
+              <div class="camera-link-row"><input id="camera-link" aria-label="iPhone camera setup link" readonly><button id="copy-camera-link" class="small-button">Copy link</button></div>
+              <details class="certificate-detail"><summary>Certificate &amp; connection help <svg class="icon chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg></summary><p>If the link cannot connect, try another PC network address. If Windows asks, allow this app on your private network.</p><p>Compare this SHA-256 fingerprint with the iPhone setup page before installing its local certificate.</p><code id="camera-fingerprint"></code></details>
+            </div>
+          </div>
+        </details>
+        <details class="camera-output" open>
+          <summary><span class="summary-title"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4m-3-11 3-3 3 3m-3-3v7"/></svg>OBS &amp; Discord</span><svg class="icon chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg></summary>
+          <p>Add an OBS <strong>Browser</strong> source, paste this URL, and use <strong>1280 × 720</strong>.</p>
+          <input id="camera-source" class="source-input" aria-label="OBS browser source URL" readonly>
+          <div class="camera-source-actions"><button id="copy-camera-source" class="small-button">Copy OBS URL</button><a id="open-camera-source" class="small-button" target="_blank" rel="noopener">Open <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3h7v7m0-7L10 14M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5"/></svg></a></div>
+          <p class="hint">For Discord, start <strong>OBS Virtual Camera</strong> and select it in <strong>Voice &amp; Video → Camera</strong>. Use your PC microphone for audio.</p>
+          <p class="hint subtle">Keep iPhone Desktop open. Links renew when webcam mode restarts. Stop webcam mode to return to screen control.</p>
+        </details>
+      </div>
+
+      <details id="setup" class="setup-panel" open>
+        <summary><span class="summary-title"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1m-8.6 8.6-2.1 2.1"/><circle cx="12" cy="12" r="4"/></svg>First connection</span><svg class="icon chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg></summary>
+        <ol class="steps"><li><strong>Connect and trust</strong><p>Unlock your iPhone and accept “Trust This Computer”.</p></li><li><strong>Enable Developer Mode</strong><p>Settings → Privacy &amp; Security. Confirm after restarting.</p><button id="reveal" class="text-button">Setting missing?</button></li><li><strong>Prepare services</strong><p>First use or after an iOS update. Requires Internet.</p><button id="prepare" class="small-button">Prepare services</button></li></ol>
+        <div id="wifi-config"><label for="wifi-ip" class="field-label">IPHONE WI-FI IP · OPTIONAL</label><input id="wifi-ip" type="text" inputmode="decimal" placeholder="e.g. 192.168.1.100" maxlength="15" autocomplete="off"><button id="setup-wifi" class="text-button wifi-setup">Set up Wi-Fi while USB is connected</button></div>
       </details>
-      <div class="sidebar-bottom"><button id="show-log" class="text-button">Open log</button><span id="version">v0.2.0 · preview</span></div>
+      <div class="sidebar-bottom"><button id="show-log" class="text-button">Connection log</button><span id="version">v0.4.0 · preview</span></div>
     </aside>
+
     <section class="preview" aria-label="iPhone screen">
-      <div class="preview-header"><span><span id="preview-dot" class="preview-dot"></span> <strong id="preview-title">Your screen, right here.</strong></span><button id="fullscreen" class="quiet" hidden>Expand ↗</button></div>
-      <div id="empty" class="empty-state">
-        <div class="phone-illustration" aria-hidden="true"><div class="phone-camera"></div><div class="phone-screen"><div class="phone-symbol">↗</div><div class="phone-line"></div><div class="phone-line short"></div></div><div class="phone-home"></div></div>
-        <div><div class="eyebrow">FEWER STEPS. MORE SPACE.</div><h2>From your phone<br>to your desktop.</h2><p id="empty-message">Connect your iPhone and complete the initial setup.<br>Then use your mouse to tap and scroll.</p></div>
-        <div class="feature-pills"><span>↳ USB</span><span>⌨ Mouse and keyboard</span><span>○ No Bluetooth</span></div>
+      <div class="preview-header"><span><span id="preview-dot" class="preview-dot"></span><strong id="preview-title">Your screen, right here.</strong></span><button id="fullscreen" class="quiet" hidden><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg>Expand</button></div>
+      <div id="loading" class="loading-state" role="status" aria-live="polite">
+        <div class="loading-spinner" aria-hidden="true"></div><div class="eyebrow" id="loading-stage">GETTING READY</div><h2 id="loading-title">Starting iPhone Desktop</h2><p id="loading-message">Opening the local connection service…</p><div class="loading-track" aria-hidden="true"><span></span></div><ol id="connection-steps" class="connection-steps" hidden><li>Check iPhone</li><li>Prepare services</li><li>Start video</li></ol><p id="loading-elapsed" class="loading-elapsed">Just a moment…</p><button id="cancel-loading" class="secondary" hidden>Cancel</button>
+      </div>
+      <div id="empty" class="empty-state" hidden>
+        <div class="phone-illustration" aria-hidden="true"><div class="phone-camera"></div><div class="phone-screen"><svg class="phone-symbol" viewBox="0 0 24 24"><path d="M7 17 17 7M7 7h10v10"/></svg><div class="phone-line"></div><div class="phone-line short"></div></div><div class="phone-home"></div></div>
+        <div><div class="eyebrow">YOUR IPHONE WORKSPACE</div><h2>Ready for your iPhone.</h2><p id="empty-message">Connect your phone for screen control,<br>or start webcam mode for a direct camera feed.</p></div><div class="feature-pills"><span>USB &amp; Wi-Fi</span><span>Mouse &amp; keyboard</span><span>OBS ready</span></div>
       </div>
       <iframe id="viewer" title="Your iPhone screen and controls" allow="autoplay; fullscreen; clipboard-read; clipboard-write" hidden></iframe>
-      <div class="preview-footer"><span id="footer-status">Waiting for a device</span><span>PC on Ethernet + iPhone on Wi-Fi: same local network</span></div>
+      <div id="camera-panel" class="camera-panel" hidden>
+        <div class="camera-live-status"><span id="camera-status">Waiting for your iPhone camera</span><span>LOCAL VIDEO</span></div>
+        <div class="camera-surface">
+          <div id="camera-waiting" class="camera-waiting"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="14" height="13" rx="3"/><path d="m17 10 4-2v9l-4-2M8 6l1-3h4l1 3"/></svg><h2>Your camera belongs here.</h2><p>Scan the QR in the sidebar and tap<br><strong>Start camera</strong> in Safari.</p></div>
+          <div id="camera-stage" class="camera-stage" hidden><canvas id="camera-view" aria-label="Live iPhone camera" hidden></canvas></div>
+        </div>
+      </div>
+      <div class="preview-footer"><span id="footer-status">Waiting for a device</span><span>Private, local connection</span></div>
     </section>
   </main>
-  <dialog id="log-dialog"><div class="dialog-heading"><div><span class="section-label">LOCAL DIAGNOSTICS</span><h2>Connection log</h2></div><button id="close-log" class="quiet" aria-label="Close log">Close ✕</button></div><p>Logs stay on this PC. Nothing is uploaded automatically.</p><pre id="log-content"></pre></dialog>
+  <dialog id="log-dialog"><div class="dialog-heading"><div><span class="section-label">LOCAL DIAGNOSTICS</span><h2>Connection log</h2></div><button id="close-log" class="quiet" aria-label="Close log">Close <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div><p>Logs stay on this PC. Nothing is uploaded automatically.</p><pre id="log-content"></pre></dialog>
   <div id="toast" class="toast" role="alert" hidden></div>
 </body>
 </html>

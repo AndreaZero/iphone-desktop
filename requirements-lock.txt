@@ -81,6 +81,7 @@ pytun-pmd3==3.0.3
 pywin32==312
 pywin32-ctypes==0.2.3
 qh3==1.9.4
+qrcode==8.2
 questionary==2.1.1
 remotezip2==0.0.2
 requests==2.34.2

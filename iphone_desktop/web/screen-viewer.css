@@ -1,0 +1,22 @@
+/* iPhone Desktop layout skin. Upstream viewer attribution is preserved. */
+:root{--bg:#0c1118;--panel:#131d29;--panel-border:#283447;--btn:#1a2736;--btn-hover:#22364a;--btn-active:#30475c;--btn-border:#33465c;--text:#e9f0f7;--muted:#8fa3b9;--blue:#8fdfc8;--blue-deep:#3c8a75;--gold:#8fdfc8;--accent:#8fdfc8}
+html{height:100%;overflow:hidden}
+body{height:100dvh;min-height:0;overflow:hidden;padding:6px;gap:6px}
+#topbar{height:24px;flex:none;font-size:11px}
+#brand-logo{height:20px;width:auto}
+.chip{font-size:10px;padding:3px 7px}
+#workspace{flex-direction:row!important;align-items:stretch!important;min-height:0;overflow:hidden;gap:6px}
+#stage-wrap{order:0!important;flex:1 1 0!important;min-height:0;min-width:0;width:auto!important;height:100%;padding:8px 14px;justify-content:center;gap:14px}
+#stage-wrap.zoomed{max-height:none;overflow:auto}
+#stage::before{background:radial-gradient(closest-side,rgba(77,154,143,.15),transparent);filter:blur(22px);inset:-8% -22%}
+.tray,#right-tray{align-self:stretch!important;width:176px;max-width:25vw;padding:6px;gap:5px;border-radius:9px;min-height:0}
+#right-tray{width:210px}
+.tray.collapsed,#right-tray.collapsed{width:28px;max-width:28px;padding:4px 2px}
+.tray .tray-content{flex:1;min-height:0;overflow-y:auto;max-height:none!important;scrollbar-width:thin;scrollbar-color:#354d60 transparent}
+.tray h3{font-size:10px;margin:7px 0 2px}
+.tray .tray-toggle{padding:2px 5px;font-size:16px;min-height:24px}
+button.btn{padding:6px 8px;font-size:11px;border-radius:6px}
+#bottom-row{padding:3px;gap:3px;border-radius:9px;flex:none}
+#bottom-row button{padding:6px 9px;font-size:11px}
+#accessibility-list{font-size:11px}
+#help-modal{font-size:12px}

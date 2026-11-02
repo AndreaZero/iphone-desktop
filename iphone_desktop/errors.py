@@ -11,6 +11,10 @@ class Problem:
 
 def explain_error(message: str) -> Problem:
     text = message.lower()
+    if "cameranetworkunavailable" in text:
+        return Problem("camera_network", "Connect to your local network", "Camera mode needs the PC and iPhone on the same local network. Connect the PC to Ethernet or Wi-Fi, then try Use iPhone as webcam again.")
+    if "camera or microphone is in use" in text or "9022" in text:
+        return Problem("camera_in_use", "Camera and mirroring cannot run together", "iOS blocks camera access during remote screen control. Close the Camera app to mirror your screen, or click Use iPhone as webcam for a direct camera feed to OBS and Discord.")
     if "wirelessdevicenotfound" in text:
         return Problem("wifi_not_found", "iPhone unavailable over Wi-Fi", "Unlock your iPhone and check Wi-Fi. For initial setup, connect USB and click Set up Wi-Fi, then unplug and refresh. The PC and iPhone must share a local network; guest networks or client isolation may prevent connections.")
     if "wirelesstunnelnotfound" in text:

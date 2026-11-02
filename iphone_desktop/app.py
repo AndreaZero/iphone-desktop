@@ -17,6 +17,7 @@ from aiohttp import ClientSession, ClientTimeout, web
 
 from iphone_desktop import __version__
 from iphone_desktop.errors import explain_error
+from iphone_desktop.camera import CameraRelay
 
 ROOT = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parents[1]
 ASSETS = Path(getattr(sys, "_MEIPASS", ROOT)) / "iphone_desktop" / "web"
@@ -58,6 +59,14 @@ class Controller:
         self.stop_event = asyncio.Event()
         self.lock = asyncio.Lock()
         self.generation = 0
+        self.operation_started = None
+        self.progress = None
+        self.camera = CameraRelay(RUNTIME, ASSETS)
+
+    def loading(self, state, message, step=1, total=1):
+        self.state = state
+        self.message = message
+        self.progress = {"step": step, "total": total}
 
     def log(self, text):
         self.logs.append({"time": time.strftime("%H:%M:%S"), "text": str(text)})
@@ -96,19 +105,23 @@ class Controller:
                 await child.wait()
             self.children.discard(child)
 
-    async def scan(self):
-        data = await self.run_worker("discover", timeout=40)
-        self.devices = data["devices"]
+    async def scan(self, transport="usb"):
+        self.loading("scanning", "Looking for a trusted USB iPhone…" if transport == "usb" else "Looking for your iPhone on the local network. Wi-Fi discovery can take up to 30 seconds…")
+        data = await self.run_worker("discover", transport=transport, timeout=40)
+        # Keep the other transport's results so switching tabs does not empty
+        # a known USB connection while a wireless search is in progress.
+        self.devices = [d for d in self.devices if d["transport"] != transport] + data["devices"]
         usb = sum(d["transport"] == "usb" for d in self.devices)
         wifi = sum(d["transport"] == "wifi" for d in self.devices)
         self.log(f"Found {usb} USB and {wifi} Wi-Fi connections (Apple and Bonjour).")
-        self.message = "Select the phone and click Connect iPhone." if self.devices else "No iPhone found. Connect the cable, unlock the phone, and trust this PC."
+        found = any(d["transport"] == transport for d in self.devices)
+        self.message = "Select the phone and click Connect iPhone." if found else ("No USB iPhone found. Connect the cable, unlock the phone, and trust this PC." if transport == "usb" else "No Wi-Fi iPhone found. Keep it unlocked, check the local network, and refresh. Use USB for initial Wi-Fi setup.")
         self.state = "idle"
 
     async def start_session(self, device, transport):
+        await self.camera.stop()
         await self.stop_session()
-        self.state = "connecting"
-        self.message = "Checking device trust and iPhone services…"
+        self.loading("connecting", "Checking device trust and iPhone services…", 1, 3)
         info = await self.run_worker("info", device, transport)
         self.log(f"{info['name']} · iOS {info['ios']} · Developer Mode: {info['developer_mode']}")
         if not info["developer_mode"]:
@@ -121,13 +134,13 @@ class Controller:
             self.message = "This streaming method requires iOS 27 or later."
             self.problem = {"code": "ios_version", "title": "iOS version unsupported by the engine", "detail": f"The phone runs iOS {info['ios']}. This preview cannot stream the screen on that version. No purchase is needed: support requires an engine change or another protocol."}
             return
-        self.message = "Preparing developer services: the first download may take a few minutes…"
+        self.loading("connecting", "Preparing developer services: the first download may take a few minutes…", 2, 3)
         prepared = await self.run_worker("prepare", device, transport, timeout=600)
         self.log(prepared["message"])
         self.engine_port = free_port()
         self.engine, self.engine_result, self.engine_log = await self.spawn("stream", device, transport, self.engine_port)
         self.log("Starting the local tunnel and screen/touch engine. No Bluetooth.")
-        self.message = "Starting screen and controls…"
+        self.loading("connecting", "Starting screen and controls. Waiting for the first video data…", 3, 3)
         generation = self.generation
         await self.wait_for_video()
         self.state = "connected"
@@ -177,9 +190,21 @@ class Controller:
                 await self.engine_monitor
             self.engine_monitor = None
         if self.engine and self.engine.returncode is None:
-            self.engine.terminate()
-            with contextlib.suppress(asyncio.TimeoutError):
-                await asyncio.wait_for(self.engine.wait(), 4)
+            # Windows TerminateProcess skips the worker's finally blocks.
+            # Let it stop device streams and close its tunnel before fallback.
+            result_path = getattr(self, "engine_result", None)
+            if result_path:
+                try:
+                    result_path.with_suffix(".stop").touch()
+                except OSError:
+                    logging.exception("Could not request graceful stream shutdown")
+                else:
+                    with contextlib.suppress(asyncio.TimeoutError):
+                        await asyncio.wait_for(self.engine.wait(), 20)
+            if self.engine.returncode is None:
+                self.engine.terminate()
+                with contextlib.suppress(asyncio.TimeoutError):
+                    await asyncio.wait_for(self.engine.wait(), 4)
             if self.engine.returncode is None:
                 self.engine.kill()
                 await self.engine.wait()
@@ -192,10 +217,19 @@ class Controller:
 
     async def perform(self, action, device=None, transport="usb", wifi_host=None):
         async with self.lock:
+            self.operation_started = time.monotonic()
             try:
                 self.problem = None
-                if action == "scan":
-                    await self.scan()
+                if action == "camera":
+                    self.loading("preparing", "Releasing screen mirroring and starting the local camera connection…")
+                    await self.stop_session()
+                    self.loading("preparing", "Preparing the secure iPhone camera link…")
+                    await self.camera.start()
+                    self.state = "camera"
+                    self.message = "Scan the camera QR code with your iPhone, then open the link in Safari."
+                    self.log("Camera mode enabled on the local network. Screen mirroring stopped.")
+                elif action == "scan":
+                    await self.scan(transport)
                 elif action == "connect":
                     if not device:
                         raise ValueError("No device found")
@@ -205,8 +239,7 @@ class Controller:
                         raise ValueError("No device found")
                     if self.engine:
                         await self.stop_session()
-                    self.state = "preparing"
-                    self.message = {"prepare": "Preparing services: the first download may take a few minutes…", "reveal": "Revealing the Developer Mode setting…", "wifi": "Enabling Wi-Fi connections over USB…"}[action]
+                    self.loading("preparing", {"prepare": "Preparing services: the first download may take a few minutes…", "reveal": "Revealing the Developer Mode setting…", "wifi": "Enabling Wi-Fi connections over USB…"}[action])
                     data = await self.run_worker(action, device, "usb", timeout=600 if action == "prepare" else 40, wifi_host=wifi_host)
                     self.log(data["message"])
                     self.message = data["message"]
@@ -216,12 +249,16 @@ class Controller:
             except Exception as exc:
                 await self.stop_session()
                 self.failure(str(exc) or type(exc).__name__)
+            finally:
+                self.progress = None
+                self.operation_started = None
 
     async def shutdown(self):
         if self.operation and not self.operation.done():
             self.operation.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await self.operation
+        await self.camera.stop()
         await self.stop_session()
         for child in tuple(self.children):
             if child.returncode is None:
@@ -236,7 +273,8 @@ class Controller:
             with self.engine_log.open("rb") as source:
                 source.seek(max(0, self.engine_log.stat().st_size - 12000))
                 engine_lines = source.read().decode("utf-8", "replace").splitlines()[-35:]
-        return {"version": __version__, "state": self.state, "message": self.message, "problem": self.problem, "devices": self.devices, "busy": bool(self.operation and not self.operation.done()), "viewer": f"http://127.0.0.1:{self.engine_port}/" if self.state == "connected" else None, "logs": self.logs, "engine_log": engine_lines}
+        progress = {**self.progress, "elapsed_seconds": max(0, int(time.monotonic() - self.operation_started))} if self.progress and self.operation_started is not None else None
+        return {"version": __version__, "state": self.state, "message": self.message, "problem": self.problem, "devices": self.devices, "busy": bool(self.operation and not self.operation.done()), "progress": progress, "viewer": f"http://127.0.0.1:{self.engine_port}/" if self.state == "connected" else None, "camera": self.camera.snapshot(), "logs": self.logs, "engine_log": engine_lines}
 
 
 def create_app(controller, port, token):
@@ -268,7 +306,7 @@ def create_app(controller, port, token):
     async def action(request):
         body = await request.json()
         command = body.get("action")
-        if command not in ("scan", "connect", "prepare", "reveal", "wifi", "disconnect", "quit"):
+        if command not in ("scan", "connect", "prepare", "reveal", "wifi", "camera", "disconnect", "quit"):
             raise web.HTTPBadRequest(text="Unknown action")
         if command == "quit":
             controller.stop_event.set()
@@ -278,17 +316,20 @@ def create_app(controller, port, token):
                 controller.operation.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
                     await controller.operation
+            await controller.camera.stop()
             await controller.stop_session()
             return web.json_response({"ok": True})
         if controller.operation and not controller.operation.done():
             raise web.HTTPConflict(text="Operation in progress")
         if command == "scan" and controller.engine:
             raise web.HTTPConflict(text="Stop the current session before scanning")
+        if controller.camera.active and command != "camera":
+            raise web.HTTPConflict(text="Stop camera mode before starting another operation")
         device = body.get("device")
         transport = body.get("transport", "usb")
         if transport not in ("usb", "wifi"):
             raise web.HTTPBadRequest()
-        if command != "scan" and not any(d["id"] == device and d["transport"] == transport for d in controller.devices):
+        if command not in ("scan", "camera") and not any(d["id"] == device and d["transport"] == transport for d in controller.devices):
             raise web.HTTPBadRequest(text="Select a discovered device")
         wifi_host = body.get("wifi_host") if command == "wifi" else None
         if wifi_host:
@@ -304,6 +345,39 @@ def create_app(controller, port, token):
     app.router.add_get("/api/state", state)
     app.router.add_post("/api/action", action)
     app.router.add_static("/assets", ASSETS)
+    controller.camera.install_view_routes(app)
+
+    async def camera_qr(request):
+        if not controller.camera.active:
+            raise web.HTTPConflict(text="Enable camera mode first")
+        try:
+            index = int(request.query.get("index", "0"))
+            if index < 0:
+                raise ValueError()
+            url = controller.camera.sender_urls[index]
+        except (ValueError, IndexError):
+            raise web.HTTPBadRequest()
+        import io
+        import qrcode
+        import qrcode.image.svg
+        output = io.BytesIO()
+        qrcode.make(url, image_factory=qrcode.image.svg.SvgPathImage).save(output)
+        return web.Response(body=output.getvalue(), content_type="image/svg+xml")
+
+    async def camera_control(request):
+        if not controller.camera.active:
+            raise web.HTTPConflict(text="Start webcam mode first.")
+        try:
+            command = await request.json()
+            camera_state = await controller.camera.control(command)
+        except (ValueError, TypeError) as exc:
+            raise web.HTTPBadRequest(text=str(exc))
+        except (RuntimeError, asyncio.TimeoutError) as exc:
+            raise web.HTTPConflict(text=str(exc) or "The iPhone did not respond. Keep Safari open and retry.")
+        return web.json_response({"ok": True, "camera_state": camera_state})
+
+    app.router.add_get("/api/camera/qr", camera_qr)
+    app.router.add_post("/api/camera/control", camera_control)
     return app
 
 

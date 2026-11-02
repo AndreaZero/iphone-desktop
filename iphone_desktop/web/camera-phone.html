@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#11151d">
+  <title>iPhone Desktop Camera</title>
+  <link rel="stylesheet" href="camera.css">
+  <script src="settings.js" defer></script>
+  <script src="phone.js" defer></script>
+</head>
+<body class="camera-phone">
+  <main class="camera-shell">
+    <header class="camera-brand"><span class="camera-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="6" width="18" height="14" rx="3"/><path d="m8 6 1-3h6l1 3"/><circle cx="12" cy="13" r="3.5"/></svg></span><span>iPhone <strong>Desktop</strong><small>CAMERA STUDIO</small></span><span class="local-label">Local video</span></header>
+    <div class="camera-workspace">
+    <div class="preview-area" id="preview-area">
+    <div id="camera-preview" class="camera-preview">
+      <video id="preview" autoplay muted playsinline aria-label="Live camera preview" hidden></video>
+      <div id="preview-placeholder" class="preview-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="3"/><path d="m8 6 1-3h6l1 3"/><circle cx="12" cy="13" r="3.5"/></svg><h1>Your camera,<br>ready to connect.</h1><p>Start below, then adjust from your PC.</p></div>
+      <span id="live-label" class="live-label" hidden><i></i> LIVE</span>
+    </div>
+    </div>
+    <aside class="phone-sidebar" aria-label="Camera settings">
+    <section class="camera-controls" aria-label="Camera controls">
+      <label for="camera">CAMERA &amp; LENS</label>
+      <select id="camera"><option value="facing:environment">Back camera</option><option value="facing:user">Front camera</option></select>
+      <button id="start" class="primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m9 5 11 7-11 7Z"/></svg>Start camera</button>
+      <button id="stop" class="secondary" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>Stop camera</button>
+    </section>
+    <section id="status" class="camera-status" role="status" aria-live="polite"><span class="status-dot"></span><div><strong id="status-title">Ready when you are</strong><p id="status-text">Tap Start camera and allow access in Safari.</p></div></section>
+    <section id="adjustments" hidden aria-label="Camera adjustments">
+      <div class="adjustments-heading"><div><span class="eyebrow">LIVE CONTROLS</span><p id="capture-info"></p></div><button id="reset-camera" class="quiet" type="button">Reset</button></div>
+      <div id="control-fields"></div>
+      <p id="control-message" class="control-message" role="status">Settings also work from the PC sidebar.</p>
+      <p id="native-help" class="help"></p>
+    </section>
+    <details id="certificate-help" hidden><summary>Enable camera access on this iPhone</summary><p>Safari needs a trusted HTTPS connection. Return to the setup link shown on your PC and download its local certificate.</p><ol><li>Open Settings → General → VPN &amp; Device Management and install the downloaded iPhone Desktop Local Camera profile.</li><li>Open Settings → General → About → Certificate Trust Settings and enable full trust for iPhone Desktop Local Camera.</li><li>Return to the secure camera link in Safari and reload this page.</li></ol><p>Only install the certificate from your own PC. You can remove it from VPN &amp; Device Management when you no longer use this camera.</p></details>
+    <footer><p>Keep Safari visible and the iPhone unlocked. Locking the screen or switching apps stops the camera.</p><p>Video only · Same local network</p></footer>
+    </aside>
+    </div>
+  </main>
+</body>
+</html>
